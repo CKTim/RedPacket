@@ -38,7 +38,7 @@ public class RedPacketService extends AccessibilityService {
      */
     private boolean isOpenRP;
 
-    private boolean isOpenDetail=false;
+    private boolean isOpenDetail = false;
 
     /**
      * 用于判断是否屏幕是亮着的
@@ -48,10 +48,10 @@ public class RedPacketService extends AccessibilityService {
     /**
      * 获取PowerManager.WakeLock对象
      */
-    private  PowerManager.WakeLock wakeLock;
+    private PowerManager.WakeLock wakeLock;
 
-    /**KeyguardManager.KeyguardLock对象
-     *
+    /**
+     * KeyguardManager.KeyguardLock对象
      */
     private KeyguardManager.KeyguardLock keyguardLock;
 
@@ -61,14 +61,13 @@ public class RedPacketService extends AccessibilityService {
         switch (eventType) {
             //通知栏来信息，判断是否含有微信红包字样，是的话跳转
             case AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED:
-                Log.e("SSSSSS0","通知栏来信息TYPE_WINDOW_STATE_CHANGED");
                 List<CharSequence> texts = event.getText();
                 for (CharSequence text : texts) {
                     String content = text.toString();
                     if (!TextUtils.isEmpty(content)) {
                         //判断是否含有[微信红包]字样
                         if (content.contains("[微信红包]")) {
-                            if(!isScreenOn()){
+                            if (!isScreenOn()) {
                                 wakeUpScreen();
                             }
                             //如果有则打开微信红包页面
@@ -98,16 +97,17 @@ public class RedPacketService extends AccessibilityService {
                 }
 
                 //判断是否是红包领取后的详情界面
-                if (isOpenDetail&&LUCKEY_MONEY_DETAIL.equals(className)) {
+                if (isOpenDetail && LUCKEY_MONEY_DETAIL.equals(className)) {
 
-                    isOpenDetail=false;
+                    isOpenDetail = false;
                     //返回桌面
                     back2Home();
+                    //如果之前是锁着屏幕的则重新锁回去
+                    release();
                 }
                 break;
         }
 
-        release();
 
     }
 
@@ -120,7 +120,7 @@ public class RedPacketService extends AccessibilityService {
             if ("android.widget.Button".equals(node.getClassName())) {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
 
-                isOpenDetail=true;
+                isOpenDetail = true;
             }
             openRedPacket(node);
         }
@@ -148,6 +148,7 @@ public class RedPacketService extends AccessibilityService {
                             parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                             //isOpenRP用于判断该红包是否点击过
                             isOpenRP = true;
+
                             break;
                         }
                         parent = parent.getParent();
@@ -225,7 +226,8 @@ public class RedPacketService extends AccessibilityService {
      */
     private boolean isScreenOn() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        isScreenOn = pm.isInteractive();
+        isScreenOn = pm.isScreenOn();
+        Log.e("isScreenOn", isScreenOn + "");
         return isScreenOn;
     }
 
@@ -237,14 +239,14 @@ public class RedPacketService extends AccessibilityService {
         //获取电源管理器对象
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         //后面的参数|表示同时传入两个值，最后的是调试用的Tag
-        wakeLock = pm.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.SCREEN_DIM_WAKE_LOCK, "bright");
+        wakeLock = pm.newWakeLock(PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.FULL_WAKE_LOCK, "bright");
 
         //点亮屏幕
         wakeLock.acquire();
 
         //得到键盘锁管理器
-        KeyguardManager km= (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-        keyguardLock=km.newKeyguardLock("unlock");
+        KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        keyguardLock = km.newKeyguardLock("unlock");
 
         //解锁
         keyguardLock.disableKeyguard();
@@ -253,14 +255,14 @@ public class RedPacketService extends AccessibilityService {
     /**
      * 释放keyguardLock和wakeLock
      */
-    public void release(){
-        if(wakeLock!=null){
-            wakeLock.release();
-            wakeLock=null;
+    public void release() {
+        if (keyguardLock != null) {
+            keyguardLock.reenableKeyguard();
+            keyguardLock = null;
         }
-        if(keyguardLock!=null){
-//            keyguardLock.reenableKeyguard();
-            keyguardLock=null;
+        if (wakeLock != null) {
+            wakeLock.release();
+            wakeLock = null;
         }
     }
 
